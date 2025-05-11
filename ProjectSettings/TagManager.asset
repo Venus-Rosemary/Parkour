@@ -6,6 +6,10 @@ TagManager:
   tags:
   - Obstacle
   - Coin
+  - AddL
+  - Item
+  - GigCoin
+  - Blockade
   layers:
   - Default
   - TransparentFX

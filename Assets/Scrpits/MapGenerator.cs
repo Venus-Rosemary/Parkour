@@ -4,31 +4,51 @@ using System.Collections.Generic;
 public class MapGenerator : Singleton<MapGenerator>
 {
     [Header("轨道设置")]
-    public GameObject trackPrefab;        // 轨道预制体
-    public float trackSpeed = 8f;         // 轨道移动速度
-    public float trackLength = 10f;       // 单个轨道长度（和模型一样长）
-    public int initialTrackCount = 10;     // 初始轨道数量
-    public float destroyDistance = 20f;   // 销毁距离（和模型一样长）
+    public GameObject trackPrefab;          // 轨道预制体
+    public float trackSpeed = 8f;           // 轨道移动速度
+    public float trackLength = 10f;         // 单个轨道长度（和模型一样长）
+    public int initialTrackCount = 10;      // 初始轨道数量
+    public float destroyDistance = 20f;     // 销毁距离（和模型一样长）
 
 
     private List<GameObject> activeTracks = new List<GameObject>();
-    private float totalDistance;
+    private bool startMoveTracks = false;
 
     void Start()
     {
+        StartMapGenerator();
+    }
+
+    void Update()
+    {
+        if (startMoveTracks)
+        {
+            // 移动所有轨道
+            MoveAndManageTracks();
+        }
+    }
 
 
+    //地面生成初始化---(可用于结束)
+    public void InitializationMap()
+    {
+        startMoveTracks = false;
+        foreach (var item in activeTracks)
+        {
+            Destroy(item);
+        }
+        activeTracks.Clear();
+    }
+
+    //开始地面生成
+    private void StartMapGenerator()
+    {
         // 初始化轨道
         for (int i = 0; i < initialTrackCount; i++)
         {
             SpawnTrack();
         }
-    }
-
-    void Update()
-    {
-        // 移动所有轨道
-        MoveAndManageTracks();
+        startMoveTracks = true;
     }
 
     void SpawnTrack()

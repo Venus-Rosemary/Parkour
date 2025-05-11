@@ -7,7 +7,17 @@ public enum ObstacleType
     Chaos,              //混乱
     Lock                //锁定
 }
-public class ObstacleGenerator : MonoBehaviour
+
+public enum PropsType
+{
+    GigCoin,
+    PointGold,
+    Recovery,
+    ClearScreen,
+    Magnet
+}
+
+public class ObstacleGenerator : Singleton<ObstacleGenerator>
 {
     [Header("生成设置")]
     public List<GameObject> obstacles = new List<GameObject>();         // 路障预制体列表
@@ -26,6 +36,14 @@ public class ObstacleGenerator : MonoBehaviour
     private List<Vector3> spawnPoints = new List<Vector3>();          // 存储生成点
     private List<bool> spawnPointOccupied = new List<bool>();         // 记录每个点是否被占用
 
+    [Header("生成物体")]
+    [SerializeField] 
+    public List<GameObject> ActiveObjectsInScene 
+        = new List<GameObject>();                                       // 存储障碍
+
+    [Header("物体变化设置")]
+    public bool isChangeState = false;                                  //将路障变为大金币
+
     private void Start()
     {
         if (playerControl != null)
@@ -36,10 +54,34 @@ public class ObstacleGenerator : MonoBehaviour
                 spawnPoints.Add(new Vector3(point.transform.position.x, 1f, 0f));
                 spawnPointOccupied.Add(false);
             }
-            
+
             // 开始生成
-            StartCoroutine(SpawnObstacles());
+            StartObstacleGenerator();
         }
+    }
+
+    //路障生成初始化---(可用于结束)
+    public void InitializationObstacle()
+    {
+        //如果需要自然停止，请给while设置条件
+        StopAllCoroutines();
+        if (ActiveObjectsInScene != null)
+        {
+            foreach (var item in ActiveObjectsInScene)
+            {
+                Destroy(item);
+            }
+            ActiveObjectsInScene.Clear();
+        }
+        hasSpecialObstacleThisWave = false;
+        isChangeState = false;
+    }
+
+    //开始路障生成
+    private void StartObstacleGenerator()
+    {
+        // 开始生成
+        StartCoroutine(SpawnObstacles());
     }
 
     private IEnumerator SpawnObstacles()
@@ -96,6 +138,10 @@ public class ObstacleGenerator : MonoBehaviour
                         transform.position.z) + Vector3.forward * 20f, // 在前方20单位处生成
                         Quaternion.identity,transform);
 
+                    ActiveObjectsInScene.Add(obstacle);
+
+
+
                     int b = Random.Range(0, 4);
                     if (b <= 1)
                     {
@@ -107,7 +153,14 @@ public class ObstacleGenerator : MonoBehaviour
                         //25%混乱------25%被锁定
                         obstacle.GetComponentsInChildren<ObstacleAttribute>()[0].ObstacleType = b == 2 ?  ObstacleType.Lock : ObstacleType.Chaos;
                     }
-
+                    if (isChangeState)
+                    {
+                        ObstacleChange obstacleChange = obstacle.GetComponent<ObstacleChange>();
+                        if (obstacleChange != null)
+                        {
+                            obstacleChange.SetObstacleChange();
+                        }
+                    }
                     // 添加移动和销毁逻辑
                     StartCoroutine(MoveObstacle(obstacle));
                 }
@@ -127,10 +180,62 @@ public class ObstacleGenerator : MonoBehaviour
 
         if (obstacle != null)
         {
+            if (ActiveObjectsInScene.Contains(obstacle))
+            {
+                ActiveObjectsInScene.Remove(obstacle);
+            }
             Destroy(obstacle);
         }
     }
 
+    //执行场景中障碍改变
+    public void ActiveObstacleChange()
+    {
+        isChangeState = true;
+        // 对现有物体执行变化
+        foreach (GameObject obj in ActiveObjectsInScene)
+        {
+            if (obj != null)
+            {
+                ObstacleChange obstacleChange = obj.GetComponent<ObstacleChange>();
+                if (obstacleChange != null)
+                {
+                    obstacleChange.SetObstacleChange();
+                }
+            }
+        }
+
+
+        // 15秒后重置状态
+        StartCoroutine(ResetChangeState());
+    }
+
+    private IEnumerator ResetChangeState()
+    {
+        yield return new WaitForSeconds(15f);
+        isChangeState = false;
+    }
+
+    //关闭障碍物物体
+    public void ActiveObstacleDisable()
+    {
+        // 对现有物体执行变化
+        foreach (GameObject obj in ActiveObjectsInScene)
+        {
+            if (obj != null)
+            {
+                ObstacleChange obstacleChange = obj.GetComponent<ObstacleChange>();
+                if (obstacleChange != null)
+                {
+                    obstacleChange.SetObstacleActive(false);
+                }
+            }
+        }
+    }
+
+    //磁石吸引金币
+
+#if UNITY_EDITOR
     private void OnDrawGizmos()
     {
         // 可视化生成点和销毁线
@@ -146,4 +251,5 @@ public class ObstacleGenerator : MonoBehaviour
         Gizmos.color = Color.yellow;
         Gizmos.DrawLine(new Vector3(-10f, 0f, destroyDistance), new Vector3(10f, 0f, destroyDistance));
     }
+#endif
 }

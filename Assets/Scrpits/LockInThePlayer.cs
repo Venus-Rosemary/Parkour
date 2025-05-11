@@ -53,10 +53,10 @@ public class LockInThePlayer : MonoBehaviour
         sequence.AppendCallback(() => {
             boomObject.SetActive(true);
         });
-        sequence.AppendInterval(0.5f);
+        sequence.AppendInterval(0.25f);
 
         sequence.AppendCallback(() => {
-            boomObject.transform.DOMoveY(this.gameObject.transform.position.y, 0.5F).OnComplete(() =>
+            boomObject.transform.DOMoveY(this.gameObject.transform.position.y, 0.25F).OnComplete(() =>
             {
                 boomObject.SetActive(false);
                 DestoryOtherSelf();

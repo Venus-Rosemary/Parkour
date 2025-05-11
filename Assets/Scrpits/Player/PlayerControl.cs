@@ -15,9 +15,16 @@ public class PlayerControl : MonoBehaviour
     public int maxHealth = 3;                                           // 最大生命值
     private int currentHealth;                                          // 当前生命值
     private int score;                                                  // 得分
-    public Transform coinPoint; 
+
+    private int TemporaryHealth = 0;                                    // 临时血量
+
+    public Transform coinPoint;
+    private float addScoreTimer = 0f;                                   // 计时器变量
+
+    [Header("受伤状态设置")]
     public float invincibleTime = 3f;                                   // 受伤后的无敌时间
     private bool isInvincible = false;                                  // 是否处于无敌状态
+
 
     [Header("混乱状态设置")]
     private bool isControlReversed = false;                             // 控制是否反转
@@ -26,10 +33,18 @@ public class PlayerControl : MonoBehaviour
 
     [Header("被锁定状态设置")]
     public GameObject unlockVFX;                                        // 被锁定特效
+    public int lockFrequency = 3;                                       // 锁定攻击次数
+    [SerializeField] private int currentLockCount = 0;                  // 当前锁定次数
+    private Coroutine lockAttackCoroutine;
+
+    [Header("吸引金币状态设置")]
+    private bool isMagnetActive = false;                                // 磁铁是否激活
+    private float magnetRange = 10f;                                    // 磁铁吸引范围
+    private Coroutine magnetCoroutine;                                 // 磁铁效果协程
 
     [Header("移动设置")]
     [SerializeField] 
-    private float moveSpeed = 5f;                                       //左右移动速度
+    private float moveSpeed = 15f;                                       //左右移动速度
     [SerializeField] 
     private Vector2 moveBoundaryMin = new Vector2(-10f, -10f);          //移动范围限制
     [SerializeField] 
@@ -59,13 +74,22 @@ public class PlayerControl : MonoBehaviour
     {
         currentHealth = maxHealth;
         score = 0;
+
+        UIControl.Instance.SetHpText(currentHealth, maxHealth);
     }
 
     void Update()
     {
         if (!isRolling)  // 只有不在翻滚状态才能移动和跳跃
         {
-            MovementFirst();
+            if (FirstScene)
+            {
+                MovementFirst();
+            }
+            if (SecendScene)
+            {
+                MovementSecond();
+            }
             CheckJump();
         }
         RollOver();
@@ -80,6 +104,14 @@ public class PlayerControl : MonoBehaviour
     {
         inputActions.PC.Disable();
     }
+
+
+    #region 初始化
+    public void InitializationLaser()
+    {
+
+    }
+    #endregion
 
     #region 触发器内容处理
     private void OnTriggerEnter(Collider other)
@@ -112,7 +144,17 @@ public class PlayerControl : MonoBehaviour
                             break;
 
                         case ObstacleType.Lock:
-                            GameObject aa = Instantiate(unlockVFX, playerObject.transform.position, Quaternion.identity);
+                            // 重置锁定次数
+                            currentLockCount = 0;
+
+                            //if (lockAttackCoroutine!=null)
+                            //{
+                            //    StopCoroutine(lockAttackCoroutine);
+                            //}
+                            if (lockAttackCoroutine==null)
+                            {
+                                lockAttackCoroutine = StartCoroutine(LockAttackRoutine());
+                            }
                             break;
                     }
                 }
@@ -122,45 +164,146 @@ public class PlayerControl : MonoBehaviour
 
         if (other.CompareTag("Coin"))
         {
-            //取出金币，不再跟随移动
-            other.transform.SetParent(null);
-            other.GetComponent<BoxCollider>().enabled = false;
-            CollectCoin();
-
-            //拾取动画，向上移动，加快旋转
-            other.GetComponent<RotateSelf>().rotationSpeed = new Vector3(0, 300, 0);
-            other.transform.DOMoveY(coinPoint.position.y + 2, 1f);
-
-            DOVirtual.DelayedCall(1.1f, () => Destroy(other.gameObject));
-
+            CoinPickUp(other.gameObject, 1);
         }
+
+        if (other.CompareTag("GigCoin"))
+        {
+            CoinPickUp(other.gameObject, 5);
+        }
+
+
+        if (other.CompareTag("Item"))
+        {
+            PropsSetting obstacle = other.GetComponentsInChildren<PropsSetting>()[0];
+            if (obstacle != null)
+            {
+                switch (obstacle.propsType)
+                {
+                    case PropsType.PointGold:
+
+                        ObstacleGenerator.Instance.ActiveObstacleChange();
+                        Debug.Log("点金");
+                        break;
+
+                    case PropsType.Recovery:
+                        RecoveryHp();
+                        Debug.Log("回血");
+                        break;
+                    case PropsType.ClearScreen:
+                        TemporaryHealth = 1;
+
+                        UIControl.Instance.SetHpProtect(true);
+                        ObstacleGenerator.Instance.ActiveObstacleDisable();
+                        Debug.Log("清屏");
+                        break;
+                    case PropsType.Magnet:
+                        if (magnetCoroutine != null)
+                        {
+                            StopCoroutine(magnetCoroutine);
+                        }
+                        magnetCoroutine = StartCoroutine(MagnetEffect());
+                        Debug.Log("磁铁");
+                        break;
+                }
+
+                Destroy(other.gameObject);
+            }
+        }
+
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (other.CompareTag("AddL"))
+        {
+            addScoreTimer += Time.deltaTime;
+            if (addScoreTimer >= 0.1f)
+            {
+                score++;
+                UIControl.Instance.SetScoreText(score);
+                addScoreTimer = 0f;
+            }
+        }
+
+        if (other.CompareTag("Blockade"))
+        {
+            if (!isInvincible)
+            {
+                //不在无敌状态下受伤
+                TakeDamage();
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
     }
 
     //受伤
     private void TakeDamage()
     {
-        currentHealth--;
+        if (TemporaryHealth==1)
+        {
+            TemporaryHealth = 0;
+            UIControl.Instance.SetHpProtect(false);
+            ObstacleGenerator.Instance.ActiveObstacleDisable();
+        }
+        else
+        {
+            currentHealth--;
+        }
         Debug.Log($"受到伤害！当前生命值：{currentHealth}");
-
-        UIControl.Instance.SetHpText(currentHealth, maxHealth);
 
         if (currentHealth <= 0)
         {
+            currentHealth = 0;
             GameOver();
         }
         else
         {
             StartCoroutine(InvincibleRoutine());
         }
+
+        UIControl.Instance.SetHpText(currentHealth, maxHealth);
     }
 
-    //加分
-    private void CollectCoin()
+    //拾取金币
+    private void CoinPickUp(GameObject other, int score)
     {
-        score++;
+        //取出金币，不再跟随移动
+        other.transform.SetParent(null);
+        other.GetComponent<CoinSetting>().SetCanMove(true);
+        other.GetComponent<BoxCollider>().enabled = false;
+        CollectCoin(score);
+
+        //拾取动画，向上移动，加快旋转
+        other.GetComponent<RotateSelf>().rotationSpeed = new Vector3(0, 300, 0);
+        other.transform.DOMoveY(coinPoint.position.y + 2, 1f);
+
+        DOVirtual.DelayedCall(1.1f, () => Destroy(other.gameObject));
+    }
+
+    //回血
+    private void RecoveryHp()
+    {
+        currentHealth++;
+        if (currentHealth >= maxHealth)
+        {
+            currentHealth= maxHealth;
+        }
+        UIControl.Instance.SetHpText(currentHealth, maxHealth);
+    }
+
+
+    //加分
+    private void CollectCoin(int a)
+    {
+        score+=a;
         UIControl.Instance.SetScoreText(score);
     }
 
+    //无敌
     private IEnumerator InvincibleRoutine()
     {
         isInvincible = true;
@@ -178,6 +321,65 @@ public class PlayerControl : MonoBehaviour
         SetControlReverse(false);
 
     }
+
+    //锁定攻击
+    private IEnumerator LockAttackRoutine()
+    {
+        while (currentLockCount < lockFrequency)
+        {
+            GameObject effect = Instantiate(unlockVFX, playerObject.transform.position, Quaternion.identity);
+            currentLockCount++;
+            yield return new WaitForSeconds(4f); // 每次攻击间隔1秒
+        }
+        lockAttackCoroutine = null;
+    }
+
+    //吸引金币
+    private IEnumerator MagnetEffect()
+    {
+        isMagnetActive = true;
+        float duration = 15f; // 磁铁持续时间
+        float timer = 0f;
+
+        while (timer < duration)
+        {
+            // 查找场景中所有金币
+            GameObject[] normalCoins = GameObject.FindGameObjectsWithTag("Coin");
+            GameObject[] gigCoins = GameObject.FindGameObjectsWithTag("GigCoin");
+
+            // 处理普通金币
+            foreach (GameObject coin in normalCoins)
+            {
+                ProcessCoin(coin);
+            }
+
+            // 处理大金币
+            foreach (GameObject coin in gigCoins)
+            {
+                ProcessCoin(coin);
+            }
+
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        isMagnetActive = false;
+        magnetCoroutine = null;
+    }
+    private void ProcessCoin(GameObject coin)
+    {
+        if (coin != null)
+        {
+            CoinSetting coinSetting = coin.GetComponent<CoinSetting>();
+            float zDistance = Mathf.Abs(coin.transform.position.z - transform.position.z);
+            if (zDistance <= magnetRange)
+            {
+                coin.transform.SetParent(null);
+                coinSetting.SetCanMove(true);
+            }
+        }
+    }
+
     #endregion
 
 
@@ -189,6 +391,11 @@ public class PlayerControl : MonoBehaviour
         bool isMovingTo = false;
         foreach (var item in movePoint)
         {
+            if (SecendScene)
+            {
+                isMovingTo = false;
+                break;
+            }
             if (Mathf.Abs(item.transform.position.x - moveVector2.x)<=0.5f)
             {
                 isMovingTo = false;
