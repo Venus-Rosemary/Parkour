@@ -56,7 +56,7 @@ public class ObstacleGenerator : Singleton<ObstacleGenerator>
             }
 
             // 开始生成
-            StartObstacleGenerator();
+            //StartObstacleGenerator();
         }
     }
 
@@ -78,7 +78,7 @@ public class ObstacleGenerator : Singleton<ObstacleGenerator>
     }
 
     //开始路障生成
-    private void StartObstacleGenerator()
+    public void StartObstacleGenerator()
     {
         // 开始生成
         StartCoroutine(SpawnObstacles());

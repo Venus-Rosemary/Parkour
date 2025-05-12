@@ -211,6 +211,33 @@ public class PlayerControl : MonoBehaviour
             }
         }
 
+        if (other.CompareTag("Fragment"))
+        {
+            SubdueBoss.Instance.AddObjectToQueue(other.GetComponent<SubduePropsSetting>().subdueBossProps.ToString());
+
+            SubduePropsSetting subObject = other.GetComponent<SubduePropsSetting>();
+
+            switch (subObject.subdueBossProps)
+            {
+                case SubdueBossProps.RestoreHealth:
+                    UIControl.Instance.AddNewItemToSlot(SubdueBossProps.RestoreHealth);
+                    break;
+                case SubdueBossProps.DoubleSubdue:
+                    UIControl.Instance.AddNewItemToSlot(SubdueBossProps.DoubleSubdue);
+                    break;
+                case SubdueBossProps.ExtensionTime:
+                    UIControl.Instance.AddNewItemToSlot(SubdueBossProps.ExtensionTime);
+                    break;
+                default:
+                    break;
+            }
+
+
+            SubdueBoss.Instance.CheckIsTriplet();
+            
+            Destroy(other.gameObject);
+        }
+
     }
 
     private void OnTriggerStay(Collider other)

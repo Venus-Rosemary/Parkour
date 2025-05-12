@@ -10,6 +10,7 @@ TagManager:
   - Item
   - GigCoin
   - Blockade
+  - Fragment
   layers:
   - Default
   - TransparentFX

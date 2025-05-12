@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 
-public class LaserGenerator : MonoBehaviour
+public class LaserGenerator : Singleton<LaserGenerator>
 {
     [Header("激光设置")]
     public List<GameObject> laserPrefabs;        // 激光预制体列表
@@ -25,7 +25,7 @@ public class LaserGenerator : MonoBehaviour
     {
         if (playerControl != null)
         {
-            StartObstacleGenerator();
+            //StartObstacleGenerator();
         }
     }
 
@@ -48,7 +48,7 @@ public class LaserGenerator : MonoBehaviour
     }
 
     //开始激光生成
-    private void StartObstacleGenerator()
+    public void StartObstacleGenerator()
     {
         // 开始生成
         StartCoroutine(LaserSpawnRoutine());

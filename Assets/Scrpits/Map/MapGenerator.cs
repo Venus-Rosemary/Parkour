@@ -16,7 +16,7 @@ public class MapGenerator : Singleton<MapGenerator>
 
     void Start()
     {
-        StartMapGenerator();
+        //StartMapGenerator();
     }
 
     void Update()
@@ -41,7 +41,7 @@ public class MapGenerator : Singleton<MapGenerator>
     }
 
     //开始地面生成
-    private void StartMapGenerator()
+    public void StartMapGenerator()
     {
         // 初始化轨道
         for (int i = 0; i < initialTrackCount; i++)

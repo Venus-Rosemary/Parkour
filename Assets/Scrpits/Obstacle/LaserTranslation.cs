@@ -32,7 +32,7 @@ public class LaserTranslation : MonoBehaviour
     public GameObject bulletPrefab;               // 子弹预制体
     public Transform shootPoint;                  // 发射点
     public float bulletSpeed = 8f;                // 子弹速度
-    private Transform playerTransform;            // 玩家位置引用
+    public Transform playerTransform;            // 玩家位置引用
     public float bulletInterval1 = 1f;                             // 发射间隔
 
     [Header("多点发射设置")]
@@ -43,7 +43,6 @@ public class LaserTranslation : MonoBehaviour
 
     private void Start()
     {
-        playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
     }
 
     private void Update()
@@ -167,10 +166,14 @@ public class LaserTranslation : MonoBehaviour
             {
                 // 从指定位置创建子弹
                 Vector3 spawnPos = shootPoint != null ? shootPoint.position : transform.position;
-                GameObject bullet = Instantiate(bulletPrefab, spawnPos, Quaternion.identity);
+                Vector3 spawnPoint = new Vector3(spawnPos.x, bulletPrefab.transform.position.y, spawnPos.z);
+                GameObject bullet = Instantiate(bulletPrefab, spawnPoint, Quaternion.identity);
 
+                Vector3 playerPoint = new Vector3(playerTransform.transform.position.x,
+                    bulletPrefab.transform.position.y,
+                    playerTransform.transform.position.z);
                 // 计算方向
-                Vector3 direction = (playerTransform.position - spawnPos).normalized;
+                Vector3 direction = (playerPoint - spawnPoint).normalized;
 
                 // 启动子弹移动协程
                 StartCoroutine(MoveBullet(bullet, direction));
@@ -237,18 +240,4 @@ public class LaserTranslation : MonoBehaviour
     }
     #endregion
 
-#if UNITY_EDITOR
-    private void OnDrawGizmos()
-    {
-        // 可视化移动范围
-        Gizmos.color = Color.red;
-        Vector3 center = new Vector3(0, laserPrefab.transform.position.y,
-            laserPrefab.transform.position.z);
-        Vector3 left = center + Vector3.left * moveRange;
-        Vector3 right = center + Vector3.right * moveRange;
-        Gizmos.DrawLine(left, right);
-        Gizmos.DrawWireSphere(left, 0.5f);
-        Gizmos.DrawWireSphere(right, 0.5f);
-    }
-#endif
 }

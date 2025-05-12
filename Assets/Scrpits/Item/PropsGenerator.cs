@@ -19,6 +19,9 @@ public class PropsGenerator : Singleton<PropsGenerator>
     [SerializeField]
     private List<GameObject> activePropsInScene = new List<GameObject>();  // 存储当前场景中的道具
 
+
+    private bool shouldExecute = true;
+
     private void Start()
     {
         if (playerControl != null)
@@ -30,13 +33,15 @@ public class PropsGenerator : Singleton<PropsGenerator>
             }
 
             // 开始生成
-            StartPropsGenerator();
+            //StartPropsGenerator();
         }
     }
 
     //道具生成初始化---(可用于结束)
     public void InitializationProps()
     {
+
+        shouldExecute = false;
         //如果需要自然停止，请给while设置条件
         StopAllCoroutines();
         if (activePropsInScene != null)
@@ -50,8 +55,9 @@ public class PropsGenerator : Singleton<PropsGenerator>
     }
 
     //开始道具生成
-    private void StartPropsGenerator()
+    public void StartPropsGenerator()
     {
+        shouldExecute = true;
         // 开始生成
         StartCoroutine(SpawnProps());
     }
@@ -71,18 +77,22 @@ public class PropsGenerator : Singleton<PropsGenerator>
 
             DOVirtual.DelayedCall(1.5f, () =>
             {
-                // 生成道具
-                GameObject props = Instantiate(propsPrefab,
-                    new Vector3(spawnPoints[randomPointIndex].x,
-                    propsPrefab.transform.position.y,
-                    transform.position.z) + Vector3.forward * 20f, // 在前方20单位处生成
-                    Quaternion.identity,
-                    transform);
+                if (shouldExecute)
+                {
+                    // 生成道具
+                    GameObject props = Instantiate(propsPrefab,
+                        new Vector3(spawnPoints[randomPointIndex].x,
+                        propsPrefab.transform.position.y,
+                        transform.position.z) + Vector3.forward * 20f, // 在前方20单位处生成
+                        Quaternion.identity,
+                        transform);
 
-                activePropsInScene.Add(props);
+                    activePropsInScene.Add(props);
 
-                // 添加移动和销毁逻辑
-                StartCoroutine(MoveProps(props));
+                    // 添加移动和销毁逻辑
+                    StartCoroutine(MoveProps(props));
+                }
+                
 
             });
 
