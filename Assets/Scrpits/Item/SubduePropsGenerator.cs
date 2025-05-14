@@ -61,7 +61,7 @@ public class SubduePropsGenerator : Singleton<SubduePropsGenerator>
                 // Ëæ»úX×ø±ê
                 float randomX = Random.Range(minX, maxX);
 
-                DOVirtual.DelayedCall(1.5f, () =>
+                DOVirtual.DelayedCall(0.5f, () =>
                 {
                     if (shouldExecute)
                     {

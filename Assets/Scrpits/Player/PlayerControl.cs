@@ -6,6 +6,7 @@ using DG.Tweening;
 public class PlayerControl : MonoBehaviour
 {
     public GameObject playerObject;                                     //玩家物体
+    public BossSetting bossSetting;
 
     [Header("不同场景的不同移动设置")]
     public bool FirstScene = false;                                     //第一场景
@@ -107,9 +108,67 @@ public class PlayerControl : MonoBehaviour
 
 
     #region 初始化
-    public void InitializationLaser()
+    public void InitializePlayer()
     {
+        // 重置生命值和分数
+        currentHealth = maxHealth;
+        score = 0;
+        TemporaryHealth = 0;
+        UIControl.Instance.SetHpText(currentHealth, maxHealth);
+        UIControl.Instance.SetScoreText(score);
 
+        // 重置状态标志
+        isInvincible = false;
+        isControlReversed = false;
+        isJumping = false;
+        isRolling = false;
+        isMoving = false;
+        canRollOver = true;
+        isMagnetActive = false;
+        currentLockCount = 0;
+
+        // 停止所有相关协程
+        if (reverseControlCoroutine != null)
+            StopCoroutine(reverseControlCoroutine);
+        if (lockAttackCoroutine != null)
+            StopCoroutine(lockAttackCoroutine);
+        if (magnetCoroutine != null)
+            StopCoroutine(magnetCoroutine);
+
+        // 重置位置和缩放
+        if (playerObject != null)
+        {
+            playerObject.transform.localScale = new Vector3(1, 2, 1);
+            transform.position = new Vector3(0, 1.25f, 3); // 设置初始位置
+        }
+
+        // 检查必要组件
+        if (playerObject == null)
+        {
+            Debug.LogError("未设置玩家物体引用");
+        }
+
+        if (ChaosVFX != null)
+            ChaosVFX.SetActive(false);
+
+        // 检查第一场景移动点设置
+        if (FirstScene && movePoint.Count != 3)
+        {
+            Debug.LogWarning("第一场景移动点数量不正确，应为3个点");
+        }
+
+        // 检查金币拾取点
+        if (coinPoint == null)
+        {
+            Debug.LogWarning("未设置金币拾取点");
+        }
+
+        // 启用输入系统
+        if (inputActions == null)
+        {
+            inputActions = new InputSystemActions();
+        }
+        inputActions.PC.Enable();
     }
     #endregion
 
@@ -155,6 +214,9 @@ public class PlayerControl : MonoBehaviour
                             {
                                 lockAttackCoroutine = StartCoroutine(LockAttackRoutine());
                             }
+                            break;
+                        case ObstacleType.BossRecovery:
+                            bossSetting.BossRecoveryHp();
                             break;
                     }
                 }
@@ -285,7 +347,7 @@ public class PlayerControl : MonoBehaviour
         if (currentHealth <= 0)
         {
             currentHealth = 0;
-            GameOver();
+            GameManager.Instance.GameOver();
         }
         else
         {
@@ -312,7 +374,7 @@ public class PlayerControl : MonoBehaviour
     }
 
     //回血
-    private void RecoveryHp()
+    public void RecoveryHp()
     {
         currentHealth++;
         if (currentHealth >= maxHealth)
@@ -321,10 +383,19 @@ public class PlayerControl : MonoBehaviour
         }
         UIControl.Instance.SetHpText(currentHealth, maxHealth);
     }
+    public void RecoveryHp(int  addHp)
+    {
+        currentHealth += addHp;
+        if (currentHealth >= maxHealth)
+        {
+            currentHealth = maxHealth;
+        }
+        UIControl.Instance.SetHpText(currentHealth, maxHealth);
+    }
 
 
     //加分
-    private void CollectCoin(int a)
+    public void CollectCoin(int a)
     {
         score+=a;
         UIControl.Instance.SetScoreText(score);
@@ -623,6 +694,12 @@ public class PlayerControl : MonoBehaviour
         Vector2 moveVector2=inputActions.PC.Move.ReadValue<Vector2>();  
         //获取左右移动
         float htal = moveVector2.x;
+
+        // 如果控制反转，则反转输入
+        if (isControlReversed)
+        {
+            htal = -htal;
+        }
 
         //获取W和S的输出（S翻滚、空格跳跃）
         float vert = moveVector2.y;

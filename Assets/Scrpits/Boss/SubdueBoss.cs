@@ -51,14 +51,21 @@ public class SubdueBoss : Singleton<SubdueBoss>
 
     public List<string> SubduePropsList = new List<string>();
 
+    [Header("物体组件")]
+    public PlayerControl playerControl;
+    public BossSetting bossSetting;
+
     [Header("当前状态")]
     public bool isSubdueState = false;
     public string subdueBoss;
 
     [Header("字典")]
     private List<int> pressedKeys = new List<int>();
+    public List<int> targetKeys = new List<int>();    // 存储目标按键
     private readonly Dictionary<string, System.Action<int, int>> bossEffects;
     private bool isExecuteCompleted = false;
+
+    private bool shouldExecute = true;
     public SubdueBoss()
     {
         bossEffects = new Dictionary<string, System.Action<int, int>>
@@ -84,7 +91,7 @@ public class SubdueBoss : Singleton<SubdueBoss>
         {
             if (Input.GetKeyDown(KeyCode.Alpha0 + i) || Input.GetKeyDown(KeyCode.Keypad0 + i))
             {
-                if (!pressedKeys.Contains(i))
+                if (!pressedKeys.Contains(i) && targetKeys.Contains(i))
                 {
                     pressedKeys.Add(i);
                     Debug.Log($"按下了按键: {i}");
@@ -93,7 +100,17 @@ public class SubdueBoss : Singleton<SubdueBoss>
                     {
                         ExecuteEffect();
                         pressedKeys.Clear();
+                        targetKeys.Clear();
                     }
+                }
+                else if (!targetKeys.Contains(i))
+                {
+
+                    Debug.Log($"按错了按键！驯服失败");
+                    //按错结束
+
+                    bossSetting.BossRecoveryHp();
+                    EndSubdueState();
                 }
             }
         }
@@ -148,12 +165,32 @@ public class SubdueBoss : Singleton<SubdueBoss>
     #endregion
 
     #region 道具判断
+
+    //设置按键
+    private void GenerateTargetKeys()
+    {
+        targetKeys.Clear();
+        while (targetKeys.Count < 2)
+        {
+            int randomKey = Random.Range(1, 10);
+            if (!targetKeys.Contains(randomKey))
+            {
+                targetKeys.Add(randomKey);
+            }
+        }
+        UIControl.Instance.SetHintText(targetKeys[0], targetKeys[1]);
+        Debug.Log($"请按下按键 {targetKeys[0]} 和 {targetKeys[1]} 来完成驯服");
+    }
+
     //执行的效果
     private void ExecuteEffect()
     {
         if (bossEffects.ContainsKey(subdueBoss))
         {
             bossEffects[subdueBoss].Invoke(pressedKeys[0], pressedKeys[1]);
+
+            bossSetting.TakeDamage(1);
+            playerControl.CollectCoin(10);
         }
     }
     private void ExecuteRestoreHealth(int key1, int key2)
@@ -161,13 +198,14 @@ public class SubdueBoss : Singleton<SubdueBoss>
         isExecuteCompleted = false;
         // 根据结果恢复2点血
         int healthToRestore =2;
-        //PlayerControl.Instance.RecoveryHp(healthToRestore);
+        playerControl.RecoveryHp(healthToRestore);
         Debug.Log($"恢复血量：{healthToRestore}");
     }
 
     private void ExecuteDoubleSubdue(int key1, int key2)
     {
         isExecuteCompleted = false;
+        bossSetting.TakeDamage(1);
         Debug.Log($"双倍伤害驯服值");
     }
 
@@ -175,6 +213,7 @@ public class SubdueBoss : Singleton<SubdueBoss>
     {
         isExecuteCompleted = false;
         // 这里添加延长时间的逻辑
+        GameManager.Instance.AddSecondSceneTime(20f);
         Debug.Log($"延长游戏时间：{20}秒");
     }
     #endregion
@@ -183,8 +222,10 @@ public class SubdueBoss : Singleton<SubdueBoss>
     {
 
         pressedKeys.Clear();  // 清空之前的按键记录
+        targetKeys.Clear();
 
         SubduePropsGenerator.Instance.InitializationSubdue();                   //1、清空场景中已生成的
+        SecondSceneObstacleGenerator.Instance.InitializationSecondObstacle();
 
         UIControl.Instance.SetSuccessUI(true);
         DOVirtual.DelayedCall(3f, () =>
@@ -194,12 +235,40 @@ public class SubdueBoss : Singleton<SubdueBoss>
             objectQueue.Clear();
             UIControl.Instance.SetSuccessUI(false);
             UIControl.Instance.ClearImage();
+            GenerateTargetKeys();  // 生成目标按键
         });
 
         DOVirtual.DelayedCall(10f, () => { 
             isSubdueState = false;
-            SubduePropsGenerator.Instance.StartSubduePropsGenerator();
+            if (shouldExecute)
+            {
+                SubduePropsGenerator.Instance.StartSubduePropsGenerator();
+                SecondSceneObstacleGenerator.Instance.StartSecondObstacleGenerator();
+            }
         });
 
+    }
+
+    // 添加游戏状态控制方法
+    public void SetGameState(bool isGameRunning)
+    {
+        shouldExecute = isGameRunning;
+        if (!isGameRunning)
+        {
+            isSubdueState = false;
+            pressedKeys.Clear();
+            targetKeys.Clear();
+            SubduePropsList.Clear();
+            objectQueue.Clear();
+            UIControl.Instance.ClearImage();
+        }
+    }
+
+    private void EndSubdueState()
+    {
+        isSubdueState = false;
+        pressedKeys.Clear();
+        targetKeys.Clear();
+        UIControl.Instance.ClearImage();
     }
 }

@@ -5,7 +5,8 @@ public enum ObstacleType
 {
     Ordinary,           //正常
     Chaos,              //混乱
-    Lock                //锁定
+    Lock,               //锁定
+    BossRecovery        //boss恢复
 }
 
 public enum PropsType
